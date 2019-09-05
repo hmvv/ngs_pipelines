@@ -232,7 +232,7 @@ process_sample_llumina()
 
       log_info "Acquired lock for run-$runID , sample- $sampleName , lockfile- $lockdir"
       log_info "bcl2fastq_running_now run-$runID , sample- $sampleName "
-      update_status_host "$queueID" "bcl2fastq_running_now" "$DB" "$USER"  "$PASSWORD"
+      update_status_host "$queueID" "bcl2fastq_started_now" "$DB" "$USER"  "$PASSWORD"
 
       run_bcl2fastq $USER  $PASSWORD  $DB  $DB_HOST  $runID $ENVIRONMENT
 
@@ -240,11 +240,13 @@ process_sample_llumina()
       checkfastqStatus="0"
       while [ $checkfastqStatus == "0" ]; do
 
-          sleep 1h
+        update_status_host "$queueID" "bcl2fastq_running..." "$DB" "$USER"  "$PASSWORD"
 
-          checkfastqStatus=$(mysql --user="$USER" --password="$PASSWORD" --database="$DB" -se "select status from pipelineStatusBcl2Fastq where runID='$runID'")
+        sleep 1h
 
-          log_info "checking bcl2fastq status -- $checkfastqStatus, run-$runID , sample- $sampleName"
+        checkfastqStatus=$(mysql --user="$USER" --password="$PASSWORD" --database="$DB" -se "select status from pipelineStatusBcl2Fastq where runID='$runID'")
+
+        log_info "checking bcl2fastq status -- $checkfastqStatus, run-$runID , sample- $sampleName"
 
       done
 

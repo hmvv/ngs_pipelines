@@ -109,7 +109,7 @@ load_variants()
 
     if [ "$INSTRUMENT" == "proton" ] ; then
 
-       variantfile=$(ls ${HOME}${CALLERID}/TSVC_variants.filter.split.vep.parse.txt)
+       variantfile=$(ls ${HOME}${CALLERID}/TSVC_variants.filter.split.vep.parse.filter.txt)
 
    elif [ "$INSTRUMENT" == "nextseq" ] ; then
 

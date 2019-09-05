@@ -17,8 +17,16 @@ ENVIRONMENT=$6
 
 load_modules
 
-log_info "submiting bcl2fastq from runPipelines, runID is $RUNID"
+log_info "submiting bcl2fastq from runBcl2fastqPipeline.sh, runID is $RUNID"
 
-qsub -k eo -F "-u$USER -p$PASSWORD -d$DB  -b$DB_HOST  -r$RUNID" /home/pipelines/ngs_${ENVIRONMENT}/shell/modules/runBcl2fastq_qsubPipeline.sh
+log_info "
+$USER
+$DB
+$DB_HOST
+$RUNID
+$ENVIRONMENT
+"
+
+/opt/torque/bin/qsub -k eo -F "-u$USER -p$PASSWORD -d$DB  -b$DB_HOST  -r$RUNID" /home/pipelines/ngs_${ENVIRONMENT}/shell/modules/runBcl2fastq_qsubPipeline.sh
 
 }

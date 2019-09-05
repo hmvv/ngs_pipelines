@@ -66,6 +66,11 @@ parse_options()
 		return 1
 }
 
+load_modules()
+{
+      source /home/pipelines/ngs_${ENVIRONMENT}/shell/modules/ngs_utils.sh
+}
+
 main()
 {
   parse_options $*
@@ -81,6 +86,18 @@ main()
   ############################################################################
 
   DIR=$(ls -d /home/nextseq/*_"$RUNID"_*)
+
+  load_modules
+
+  log_info "submiting bcl2fastq from runBcl2fastq_qsubPipeline.sh, runID is $RUNID"
+
+  log_info "
+  $USER
+  $PASSWORD
+  $DB
+  $DB_HOST
+  $RUNID
+  $ENVIRONMENT"
 
   /usr/local/bin/bcl2fastq --no-lane-splitting --runfolder-dir $DIR --output-dir "${DIR}/out1" -d 10 -p 10
   wait $!
