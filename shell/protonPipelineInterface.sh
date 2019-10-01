@@ -145,7 +145,7 @@ prep_gene50()
 run_protonPipeline()
 {
 
-  bash ${HOME_SHELLDIR}protonPipeline.sh -d $HOME \
+  bash ${HOME_SHELLDIR}proton_annotationPipeline.sh -d $HOME \
         -s $SAMPLENAME -c $COVERAGEID -v $CALLERID -a $ASSAY -e $ENVIRONMENT -q $QUEUEID -u $USER -p $PASSWORD
 
 }

@@ -25,7 +25,7 @@ parse_options()
 {
     IMPORT=0
 
-		while getopts "hz:u:p:d:b:r:e:" opt ; do
+		while getopts "hz:u:p:d:b:r:i:e:" opt ; do
 				case $opt in
 					h)
 						 display_usuage
@@ -49,6 +49,9 @@ parse_options()
 					r)
 						RUNID=$OPTARG
 						;;
+          i)
+            INSTRUMENT=$OPTARG
+            ;;
           e)
   					ENVIRONMENT=$OPTARG
   					;;
@@ -66,11 +69,6 @@ parse_options()
 		return 1
 }
 
-load_modules()
-{
-      source /home/pipelines/ngs_${ENVIRONMENT}/shell/modules/ngs_utils.sh
-}
-
 main()
 {
   parse_options $*
@@ -85,24 +83,12 @@ main()
   # initialize variables
   ############################################################################
 
-  DIR=$(ls -d /home/nextseq/*_"$RUNID"_*)
-
-  load_modules
-
-  log_info "submiting bcl2fastq from runBcl2fastq_qsubPipeline.sh, runID is $RUNID"
-
-  log_info "
-  $USER
-  $PASSWORD
-  $DB
-  $DB_HOST
-  $RUNID
-  $ENVIRONMENT"
+  DIR=$(ls -d /home/$INSTRUMENT/*_"$RUNID"_*)
 
   /usr/local/bin/bcl2fastq --no-lane-splitting --runfolder-dir $DIR --output-dir "${DIR}/out1" -d 10 -p 10
   wait $!
 
-  updatestatement="UPDATE pipelineStatusBcl2Fastq SET status=1 WHERE runID = $RUNID;"
+  updatestatement="update pipelineStatusBcl2Fastq join instruments on pipelineStatusBcl2Fastq.instrumentID = instruments.instrumentID set status=1 where pipelineStatusBcl2Fastq.runID='$RUNID' and instruments.instrumentName='$INSTRUMENT'"
   mysql --host=$DB_HOST --user="$USER" --password="$PASSWORD" --database="$DB" --execute="$updatestatement"
 
 }

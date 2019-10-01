@@ -6,7 +6,7 @@ def filterVariants(inputfile, outputfile, assay):
 
     if assay == 'neuro':
 
-        exclude = ["MUC17"]
+        exclude = ["MUC17","MUC16"]
 
         df = pd.read_csv(inputfile,sep='\t',header=None)
         df = df[~df[0].isin(exclude)]

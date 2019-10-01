@@ -36,7 +36,7 @@ germline_varscan()
   java -jar /opt/varscan/VarScan.v2.3.9.jar pileup2indel --p-value 0.01 --min-avg-qual 30 > "$outDir"/"$sample".indel.txt
 }
 
-somatic_varscan()
+tmb_varscan()
 {
   SAMPLE=$1
   REF=$2
@@ -44,6 +44,9 @@ somatic_varscan()
   TUMOR_BAM=$4
   OUT_DIR=$5
   ENV=$6
+  DEPTH=$7
+  NALF=$8
+  TALF=$9
 
 
   echo " starting varscan:
@@ -57,8 +60,7 @@ somatic_varscan()
             <(/opt/samtools19/bin/samtools  mpileup  -f $REF  $NORMAL_BAM ) \
             <(/opt/samtools19/bin/samtools  mpileup  -f $REF  $TUMOR_BAM) \
             ${OUT_DIR}${SAMPLE}.varscan.output \
-            --min-avg-qual 30
+            --min-avg-qual 30 \
+            --min-var-freq 0.1
 
-
-  /opt/python3/bin/python3 /home/pipelines/ngs_${ENV}/python/parseVarscan.py  $SAMPLE  $OUT_DIR  $ENV
 }
