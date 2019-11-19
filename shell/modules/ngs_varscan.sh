@@ -11,11 +11,11 @@ heme_varscan()
 
   ##Varscan call SNPs##
   /opt/samtools/samtools mpileup -f "$ref" "$bam" | \
-  java -jar /opt/varscan/VarScan.v2.3.9.jar pileup2snp > "$outDir"/"$sample".snp.txt
+  java -jar /opt/varscan/VarScan.v2.3.9.jar pileup2snp > "$outDir"/"$sample".snp.varscan.output
 
   ##Varscan call indels##
   /opt/samtools/samtools mpileup -f "$ref" "$bam" | \
-  java -jar /opt/varscan/VarScan.v2.3.9.jar pileup2indel > "$outDir"/"$sample".indel.txt
+  java -jar /opt/varscan/VarScan.v2.3.9.jar pileup2indel > "$outDir"/"$sample".indel.varscan.output
 }
 
 germline_varscan()

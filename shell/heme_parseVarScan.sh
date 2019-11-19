@@ -1,7 +1,7 @@
 #!/bin/bash
 if test $# -gt 0
 	then
-	while getopts :s:i:o:e: opt
+	while getopts :s:i:o:f:e: opt
 	do
 	case $opt in
 	s)
@@ -12,6 +12,9 @@ if test $# -gt 0
 		;;
 	o)
 		outDir=$OPTARG
+		;;
+	f)
+		outFile=$OPTARG
 		;;
 	e)
 		environment=$OPTARG
@@ -39,12 +42,12 @@ if($19~/^-/)
 print $1,$2,$3alt, $3, $5, $6, $10, $11
 else if($19~/^+/)
 print $1, $2, $3, $3alt, $5, $6, $10, $11}' $indel) |\
-sort -k1,1 -k2,2n > $outDir/$sample.comb.txt
+sort -k1,1 -k2,2n > $outDir/$sample.comb.varscan.output
 
 	####convert combined txt file into vcf file####
 	echo "converting to vcf"
-	python /home/pipelines/ngs_$environment/python/heme_varScan2vcf.py -I $outDir/$sample.comb.txt -o $outDir/$sample.comb.vcf
+	python /home/pipelines/ngs_$environment/python/heme_varScan2vcf.py -I $outDir/$sample.comb.varscan.output -o $outFile
 
 else
-	echo "Usage: sh varScan2vcf.sh -s [VarScan SNP result] -i [VarScan indel result] -o [output directory] -e [environment]"
+	echo "Usage: sh heme_parseVarScan.sh -s [VarScan SNP result] -i [VarScan indel result] -o [output directory] -e [environment]"
 fi

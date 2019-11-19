@@ -1,7 +1,7 @@
 #!/bin/bash
 #===============================================================================
 #
-# FILE: runPipelines.sh
+# FILE:MAIN_runPipelines.sh
 #
 #DESCRIPTION: This script is run by cronjob.It checks the queue table in NGS
 #             database and submits a sample analysis qsub based
@@ -205,7 +205,7 @@ submit_sample_illumina()
 
   if [ $assay == "heme" ] ; then
 
-    /opt/torque/bin/qsub -d ${working_dir} -l "walltime=10:00:00,nodes=1:ppn=4"   \
+    /opt/torque/bin/qsub -d ${working_dir} -l "walltime=25:00:00,nodes=1:ppn=4"   \
          -F "-r$runID -s$sampleName -a$assay -i$instrument -e$ENVIRONMENT -q$queueID -u$USER -p$PASSWORD" \
          ${HOME_SHELL}illuminaPipelineInterface.sh
 

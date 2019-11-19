@@ -9,6 +9,8 @@
 # COMPANY:Houston Methodist Hospital, Molecular Diagnostic Laboratory
 #===============================================================================
 
+#PBS -l nodes=1:ppn=10
+#PBS -l walltime=99:00:00
 #PBS -q default
 #PBS Error_Path=${PBS_JOBNAME}.err
 #PBS Output_Path=${PBS_JOBNAME}.out
@@ -109,30 +111,106 @@ create_rundate()
 
 heme_generate_variantFile()
 {
+	log_info "Running Trimmomatic: Removing sequences < Q20 sample- $SAMPLENAME"
+	trimmomatic="java -jar /opt/trimmomatic/Trimmomatic-0.33/trimmomatic-0.33.jar PE -phred33 -threads 8 \
+	$FASTQ_R1 \
+	$FASTQ_R2 \
+	${HOME_ANALYSIS}variantCaller/${SAMPLENAME}_filt_paired_R1_001.fastq.gz \
+	${HOME_ANALYSIS}variantCaller/${SAMPLENAME}_filt_unpaired_R1_001.fastq.gz \
+	${HOME_ANALYSIS}variantCaller/${SAMPLENAME}_filt_paired_R2_001.fastq.gz \
+	${HOME_ANALYSIS}variantCaller/${SAMPLENAME}_filt_unpaired_R2_001.fastq.gz \
+	TRAILING:20 \
+	AVGQUAL:20 \
+	SLIDINGWINDOW:10:20 \
+	MINLEN:30 \
+  HEADCROP:20"
+	($trimmomatic) 2>&1 | tee ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.trimmomatic.summary.txt
 
-  bash /home/pipelines/ngs_${ENVIRONMENT}/shell/heme_interface.sh \
-      -r $RUNID \
-      -s $SAMPLENAME \
-      -a $ASSAY \
-      -i $INSTRUMENT \
-      -e $ENVIRONMENT \
-      -q $QUEUEID  \
-      -u $USER \
-      -p $PASSWORD
+  ### alignment ########
+  update_status "$QUEUEID" "Alignment" "$DB" "$USER"  "$PASSWORD"
+  log_info "Running bwa mem aligner: $SAMPLENAME"
+  tmb_bwaAlign $SAMPLENAME  \
+	$REF_GENOME  \
+	$MAP_QUALITY \
+	${HOME_ANALYSIS}variantCaller/${SAMPLENAME}_filt_paired_R1_001.fastq.gz \
+	${HOME_ANALYSIS}variantCaller/${SAMPLENAME}_filt_paired_R2_001.fastq.gz \
+	${HOME_ANALYSIS}variantCaller  \
+	${HOME_ANALYSIS}process.log
 
-  VARIANT_VCF=$(ls ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.combine.vcf )
+  log_info "Generating sort bam by coordinate sample- $SAMPLENAME"
+  java -jar /opt/picard2/picard.jar SortSam \
+            I=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.bam  \
+            O=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam  \
+            SORT_ORDER=coordinate
+
+  log_info "Generating alignment stat sample- $SAMPLENAME"
+  java -jar /opt/picard2/picard.jar CollectAlignmentSummaryMetrics \
+            R=$REF_GENOME \
+            I=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam \
+            O=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam.alignmentMetrics.txt
+
+  log_info "Generating bam index sample- $SAMPLENAME"
+  java -jar /opt/picard2/picard.jar BuildBamIndex \
+            I=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam
+
+  log_info "Generating CalculateHsMetrics sample- $SAMPLENAME "
+  java -jar /opt/picard/picard-tools-1.134/picard.jar CalculateHsMetrics \
+            I=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam  \
+            O=${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.output_hs_metrics.txt \
+            R=$REF_GENOME \
+            BAIT_INTERVALS= /home/environments/ngs_${ENVIRONMENT}/assayCommonFiles/hemeAssay/myeloid_design.interval_list \
+            TARGET_INTERVALS= /home/environments/ngs_${ENVIRONMENT}/assayCommonFiles/hemeAssay/myeloid_design.interval_list
+
+
+  if [ ! -f "${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam" ] ; then
+
+    log_error "ERROR:Alignment output file not found"
+    update_status "$QUEUEID" "ERROR:Alignment" "$DB" "$USER"  "$PASSWORD"
+    exit
+
+  else
+
+    log_info "Completed Alignment"
+
+  fi
+
+
+  ### variant caller ########
+  update_status "$QUEUEID" "VariantCaller" "$DB" "$USER"  "$PASSWORD"
+  heme_varscan ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam  ${HOME_ANALYSIS}variantCaller
+
+  if [ ! -f "${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.snp.txt" ] ; then
+
+    log_error "ERROR:VariantCaller output file not found"
+    update_status "$QUEUEID" "ERROR:VariantCaller" "$DB" "$USER"  "$PASSWORD"
+    exit
+
+  else
+
+    log_info "Completed VariantCaller"
+
+  fi
+
+
+  bash ${HOME_SHELLDIR}heme_parseVarScan.sh \
+          -s ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.snp.txt \
+          -i ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.indel.txt \
+          -o ${HOME_ANALYSIS}variantCaller/  \
+          -e $ENVIRONMENT
+
+   VARIANT_VCF=$(ls ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.comb.vcf)
 }
 
 heme_generate_ampliconFile()
 {
-      HEME_EXCLUDED_DESIGN="/home/doc/ref/Heme/trusight-myeloid-amplicon-track.excluded.bed"
 
-      /opt/samtools-1.4/samtools-1.4/samtools bedcov  $HEME_EXCLUDED_DESIGN  ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam | awk ' {print $4,"\t",int($13/($8-$7))} ' > ${HOME_ANALYSIS}variantAnalysis/${SAMPLENAME}.samtools.coverageDepth
+  HEME_EXCLUDED_DESIGN="/home/doc/ref/Heme/trusight-myeloid-amplicon-track.excluded.bed"
 
-      AMPLICON_FILE=$(ls ${HOME_ANALYSIS}variantAnalysis/${SAMPLENAME}.samtools.coverageDepth)
+  /opt/samtools-1.4/samtools-1.4/samtools bedcov  $HEME_EXCLUDED_DESIGN  ${HOME_ANALYSIS}variantCaller/${SAMPLENAME}.sort.bam | awk ' {print $4,"\t",int($13/($8-$7))} ' > ${HOME_ANALYSIS}variantAnalysis/${SAMPLENAME}.samtools.coverageDepth
 
-      if [ ! -f "${HOME_ANALYSIS}variantAnalysis/${SAMPLENAME}.samtools.coverageDepth" ] ; then
+  AMPLICON_FILE=$(ls ${HOME_ANALYSIS}variantAnalysis/${SAMPLENAME}.samtools.coverageDepth)
 
+  if [ ! -f "${HOME_ANALYSIS}variantAnalysis/${SAMPLENAME}.samtools.coverageDepth" ] ; then
 
     log_error "ERROR:AmpliconFile output file not found"
     update_status "$QUEUEID" "ERROR:AmpliconFile" "$DB" "$USER"  "$PASSWORD"
@@ -230,6 +308,7 @@ tmb_run_variant_caller_paired()
 
 tmb_generate_stats()
 {
+
   /opt/python3/bin/python3   ${HOME_PYTHONDIR}tmb_getSeqStat.py \
         "${TMB_AL_OUT}${TUMOR}/Alignment/"      "$TUMOR"  \
         "${TMB_AL_OUT}${NORMAL}/Alignment/"      "$NORMAL"  \
@@ -238,16 +317,15 @@ tmb_generate_stats()
 
   wc -l /home/environments/ngs_${ENVIRONMENT}/nextseqAnalysis/tmbAssay/${RUNNAME}/${TUMOR}/Single/${TUMOR}/Alignment/${TUMOR}.depth.filter2.exon_intersect.bed > ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}.breadth_coverage
 
-  /opt/python3/bin/python3  ${HOME_PYTHONDIR}tmb_vcQC.py \
-  ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.variantcallers.combinev2.*.vep.parse.txt \
-  ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.titv_ratio
+  # /opt/python3/bin/python3  ${HOME_PYTHONDIR}tmb_vcQC.py \
+  # ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.variantcallers.combinev2.*.vep.parse.txt \
+  # ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.titv_ratio
 
   /opt/python3/bin/python3  ${HOME_PYTHONDIR}tmb_final_result.py \
   ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.seq_stats   \
   ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}.breadth_coverage \
   ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}_varscan_strelka_mutect_10_10_10.variants_results  \
   ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.tmb_result \
-  ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.titv_ratio \
   ${TMB_VC_OUT}${TUMOR}_${NORMAL}/${TUMOR}_${NORMAL}.final_result.txt
 }
 
@@ -315,6 +393,9 @@ main()
 
       show_pbsinfo
 
+      ##Aligning fastq files
+      FASTQ_R1=$RUNFOLDER/out1/"$SAMPLENAME"*_R1_001.fastq.gz
+      FASTQ_R2=${FASTQ_R1/_R1_/_R2_}      #replace "R1" with "R2"
 
       VARIANT_VCF=""
       AMPLICON_FILE=""
@@ -329,7 +410,9 @@ main()
   		runID : $RUNID
   		sampleName : $SAMPLENAME
   		environment : $ENVIRONMENT
-  		queueID : $QUEUEID "
+  		queueID : $QUEUEID
+      fastq1 : $FASTQ_R1
+      fastq2 : $FASTQ_R2 "
 
        heme_generate_variantFile
 

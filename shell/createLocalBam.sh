@@ -61,7 +61,7 @@ then
 elif [ $instrument == "nextseq" ]
 then
 
-	bamFile=$(ls -f /home/environments/$environment/"$instrument"Analysis/*_"$runID"_*/"$sampleName"/variantCaller/"$sampleName".sort.bam)
+	bamFile=$(ls -f /home/environments/$environment/"$instrument"Analysis/${assay}Assay/*_"$runID"_*/"$sampleName"/variantCaller/"$sampleName".sort.bam)
 fi
 
 echo "BAM file path is - $bamFile"

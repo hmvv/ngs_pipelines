@@ -34,10 +34,10 @@ def getstat(DIR,SAMPLE):
     file_trim=DIR+SAMPLE+".trimmomatic.summary.txt"
     get_triminfo(file_trim,result)
 
-    file_align=DIR+SAMPLE+".sorted.bam.alignmentMetrics.txt"
+    file_align=DIR+SAMPLE+".sort.bam.alignmentMetrics.txt"
     get_aligninfo(file_align,result)
 
-    file_dups=DIR+SAMPLE+".sorted.rmdups.bam.metrics.txt"
+    file_dups=DIR+SAMPLE+".sort.rmdups.bam.metrics.txt"
     get_dupinfo(file_dups,result)
 
     file_seq=DIR+SAMPLE+".output_hs_metrics.txt"

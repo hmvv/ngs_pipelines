@@ -1,7 +1,7 @@
 #!/bin/bash
 #===============================================================================
 #
-# FILE: illuminaPipeline.sh
+# FILE: heme_annotationPipeline.sh
 #
 #DESCRIPTION: This script is run to annonate and filter amplicon and variant files.
 # REQUIREMENTS: illuminaPipelineInterface.sh
@@ -105,10 +105,8 @@ filter_vep()
 {
   log_info "Filtering VEP variants (High/Moderate/>100)"
 
-  sample_ID=$(grep "^#CHROM" ${HOME}${CALLERID}/TSVC_variants.filter.vcf |cut -f 10)
-
   shopt -s nocasematch
-  if [[ $sample_ID =~ horizon ]]
+  if [[ $SAMPLENAME =~ horizon ]]
 	then
 		awk '{if(($7=="HIGH" || $7 =="MODERATE") && $10 >= 1 && $10 != "null" && $11 >=100 && $11 != "null") print}' ${HOME}variantAnalysis/${SAMPLENAME}.filter.vep.parse.vcf \
 		> ${HOME}variantAnalysis/${SAMPLENAME}.filter.vep.parse.filter2.vcf
